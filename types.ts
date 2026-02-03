@@ -26,6 +26,8 @@ export interface Goal {
   streak: number;
   completed: boolean;
   startDate: string;
+  totalSkipsAllowed: number;
+  skippedDates: string[]; // ISO date strings of days that were skipped/shifted
 }
 
 export interface Post {

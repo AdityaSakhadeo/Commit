@@ -216,6 +216,27 @@ export default function App() {
     }
   };
 
+  const handleUseSkip = (goalId: string, date: Date) => {
+    const dateStr = date.toISOString();
+    const newGoals = goals.map(goal => {
+      if (goal.id !== goalId) return goal;
+      
+      const currentSkips = goal.skippedDates || [];
+      // Avoid duplicate skips
+      if (currentSkips.some(d => d.split('T')[0] === dateStr.split('T')[0])) return goal;
+
+      return {
+        ...goal,
+        skippedDates: [...currentSkips, dateStr]
+      };
+    });
+    updateGoals(newGoals);
+    // Also update active goal reference
+    if (activeGoal && activeGoal.id === goalId) {
+      setActiveGoal(newGoals.find(g => g.id === goalId) || null);
+   }
+  };
+
   const closeCelebration = (goToRewards: boolean) => {
     setShowCelebration(false);
     if (goToRewards) {
@@ -283,6 +304,7 @@ export default function App() {
             onToggleTask={handleTaskToggle}
             onBack={() => setScreen(Screen.HOME)}
             onUpdateTasks={handleUpdateDayTasks}
+            onSkipDay={handleUseSkip}
           />
         ) : (
            <GoalSelection onSelect={() => {}} /> 
