@@ -61,9 +61,6 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
     // 2. Add Routine Tasks based on the cycle
     // Limit duration to 60 days max for this demo
     const actualDuration = Math.min(generatedPlan.duration_days || 30, 60);
-    // Calculate Skips: 10% of total duration, min 1
-    const totalSkips = Math.max(1, Math.floor(actualDuration * 0.1));
-
     const cycle = generatedPlan.schedule_cycle || [];
     const cycleLength = cycle.length;
     
@@ -96,9 +93,7 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
       streak: 0,
       completed: false,
       startDate: new Date().toISOString(),
-      tasks: finalTasks,
-      totalSkipsAllowed: totalSkips,
-      skippedDates: []
+      tasks: finalTasks
     };
 
     onGoalCreated(newGoal);
@@ -188,15 +183,6 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
               <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl italic border border-slate-100">
                 "{generatedPlan.description}"
               </p>
-              
-              {/* Skip Info Banner */}
-              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-center gap-2 text-sm text-blue-800">
-                <CalendarDays size={18} />
-                <span>
-                  <strong>{generatedPlan.duration_days || 30} Days</strong> duration. 
-                  You get <strong>{Math.max(1, Math.floor((generatedPlan.duration_days || 30) * 0.1))} Skips</strong> (10%).
-                </span>
-              </div>
 
               {/* Setup Tasks */}
               <div>

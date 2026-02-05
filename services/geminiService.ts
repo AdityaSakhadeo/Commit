@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Domain, Task } from "../types";
 
-// Safety check: In pure browser environments, 'process' might not be defined.
-// We default to an empty string to allow the app to load, though AI calls will fail until a key is added.
-const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
-const ai = new GoogleGenAI({ apiKey: apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface DayPlan {
   day_title: string;
