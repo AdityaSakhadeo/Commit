@@ -13,22 +13,22 @@ interface CreatePostProps {
 export default function CreatePost({ user, activeGoals, onPost, onCancel }: CreatePostProps) {
   const [content, setContent] = useState('');
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>(
-    activeGoals[0]?.id ? [activeGoals[0].id] : []
+    activeGoals[0] ? [activeGoals[0].id] : []
   );
   const [postType, setPostType] = useState<'UPDATE' | 'COMPLETED'>('UPDATE');
   const [hasImage, setHasImage] = useState(false);
   
   const selectedGoals = activeGoals.filter(g => selectedGoalIds.includes(g.id));
+  const primaryGoal = selectedGoals[0];
+
+  const toggleGoalSelection = (goalId: string) => {
+    setSelectedGoalIds(prev =>
+      prev.includes(goalId) ? prev.filter(id => id !== goalId) : [...prev, goalId]
+    );
+  };
 
   const handleSubmit = () => {
-    if (!content || selectedGoals.length === 0) return;
-
-    const primaryGoal = selectedGoals[0];
-    const relatedGoals = selectedGoals.map(g => ({
-      goalId: g.id,
-      title: g.title,
-      progress: g.progress,
-    }));
+    if (!content || !primaryGoal) return;
 
     const newPost: Post = {
       id: Date.now().toString(),
@@ -36,6 +36,10 @@ export default function CreatePost({ user, activeGoals, onPost, onCancel }: Crea
       userName: user.name,
       userAvatar: user.avatar,
       goalId: primaryGoal.id,
+      linkedGoals: selectedGoals.map(g => ({
+        goalId: g.id,
+        progress: g.progress,
+      })),
       domain: primaryGoal.domain,
       type: postType,
       content,
@@ -43,12 +47,7 @@ export default function CreatePost({ user, activeGoals, onPost, onCancel }: Crea
       comments: 0,
       timestamp: new Date().toISOString(),
       progressUpdate: primaryGoal.progress,
-      relatedGoals,
-      image: hasImage
-        ? (postType === 'COMPLETED'
-            ? 'https://picsum.photos/id/102/800/600'
-            : 'https://picsum.photos/id/180/800/600')
-        : undefined
+      image: hasImage ? (postType === 'COMPLETED' ? 'https://picsum.photos/id/102/800/600' : 'https://picsum.photos/id/180/800/600') : undefined
     };
 
     onPost(newPost);
@@ -82,36 +81,25 @@ export default function CreatePost({ user, activeGoals, onPost, onCancel }: Crea
            <div className="flex-1">
              <h3 className="font-bold text-slate-800 text-lg">{user.name}</h3>
              
-             {/* Goal Selector - multi-select via toggle pills */}
-             <div className="mt-2">
-               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
-                 Tag goals you worked on
-               </p>
-               <div className="flex flex-wrap gap-2">
-                 {activeGoals.map(g => {
-                   const isSelected = selectedGoalIds.includes(g.id);
-                   return (
-                     <button
-                       key={g.id}
-                       type="button"
-                       onClick={() => {
-                         setSelectedGoalIds(prev =>
-                           prev.includes(g.id)
-                             ? prev.filter(id => id !== g.id)
-                             : [...prev, g.id]
-                         );
-                       }}
-                       className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
-                         isSelected
-                           ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                           : 'bg-teal-50 text-teal-700 border-teal-100 hover:border-teal-300'
-                       }`}
-                     >
-                       {g.title}
-                     </button>
-                   );
-                 })}
-               </div>
+             {/* Goal Selector - multi select */}
+             <div className="mt-2 flex flex-wrap gap-2">
+               {activeGoals.map(goal => {
+                 const isSelected = selectedGoalIds.includes(goal.id);
+                 return (
+                   <button
+                     key={goal.id}
+                     type="button"
+                     onClick={() => toggleGoalSelection(goal.id)}
+                     className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
+                       isSelected
+                         ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                         : 'bg-teal-50 text-teal-700 border-teal-100 hover:border-teal-300'
+                     }`}
+                   >
+                     {goal.title}
+                   </button>
+                 );
+               })}
              </div>
            </div>
         </div>

@@ -38,6 +38,7 @@ export interface Post {
   userName: string;
   userAvatar: string;
   goalId?: string;
+  linkedGoals?: { goalId: string; progress?: number }[];
   domain: Domain;
   type: 'STARTED' | 'UPDATE' | 'COMPLETED';
   content: string;
@@ -46,15 +47,6 @@ export interface Post {
   comments: number;
   timestamp: string;
   progressUpdate?: number;
-  /**
-   * Optional snapshot of one or more goals that this post is about.
-   * Used to render goal names and per-goal progress bars in the feed.
-   */
-  relatedGoals?: {
-    goalId: string;
-    title: string;
-    progress: number;
-  }[];
 }
 
 export interface Story {

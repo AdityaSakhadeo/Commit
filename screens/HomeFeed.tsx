@@ -193,7 +193,7 @@ const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void;
   );
 };
 
-const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onEncourage }) => {
+const PostCard: React.FC<{ post: Post; goals: Goal[]; onEncourage: () => void }> = ({ post, goals, onEncourage }) => {
   const isStarted = post.type === 'STARTED';
   const isCompleted = post.type === 'COMPLETED';
 
@@ -209,6 +209,24 @@ const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onE
     return () => window.clearInterval(interval);
   }, [post.timestamp]);
 
+  const attachedGoalIds =
+    (post.linkedGoals && post.linkedGoals.map(g => g.goalId)) ||
+    (post.goalId ? [post.goalId] : []);
+
+  const attachedGoals = goals.filter(g => attachedGoalIds.includes(g.id));
+
+  const goalProgressData =
+    attachedGoals.length > 0
+      ? attachedGoals
+          .map(goal => {
+            const linked = post.linkedGoals?.find(lg => lg.goalId === goal.id);
+            const progress = linked?.progress ?? goal.progress ?? post.progressUpdate;
+            if (progress === undefined) return null;
+            return { goal, progress };
+          })
+          .filter((item): item is { goal: Goal; progress: number } => item !== null)
+      : [];
+
   return (
     <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 mb-4 fade-in">
       <div className="flex items-center gap-3 mb-4">
@@ -216,6 +234,11 @@ const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onE
         <div className="flex-1">
           <h3 className="font-bold text-slate-900 text-sm">{post.userName}</h3>
           <p className="text-xs text-slate-400 font-medium">{relativeTime}</p>
+          {attachedGoals.length > 0 && (
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5 line-clamp-1">
+              {attachedGoals.map(g => g.title).join(' • ')}
+            </p>
+          )}
         </div>
         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border 
           ${isStarted ? 'bg-blue-50 text-blue-600 border-blue-100' : isCompleted ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
@@ -231,19 +254,21 @@ const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onE
           </div>
         )}
         
-        {/* Goal names + progress */}
-        {post.relatedGoals && post.relatedGoals.length > 0 ? (
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
-            {post.relatedGoals.map(g => (
-              <div key={g.goalId}>
+        {goalProgressData.length > 0 ? (
+          <div className="space-y-2">
+            {goalProgressData.map(({ goal, progress }) => (
+              <div
+                key={goal.id}
+                className="bg-slate-50 p-3 rounded-xl border border-slate-100"
+              >
                 <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
-                  <span className="truncate pr-2">{g.title}</span>
-                  <span>{g.progress}%</span>
+                  <span>{goal.title}</span>
+                  <span>{progress}%</span>
                 </div>
                 <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-teal-500 rounded-full transition-all"
-                    style={{ width: `${g.progress}%` }}
+                    style={{ width: `${progress}%` }}
                   ></div>
                 </div>
               </div>
@@ -252,13 +277,16 @@ const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onE
         ) : (
           post.progressUpdate !== undefined && (
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-               <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
-                 <span>Goal Progress</span>
-                 <span>{post.progressUpdate}%</span>
-               </div>
-               <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                 <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${post.progressUpdate}%` }}></div>
-               </div>
+              <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
+                <span>Goal Progress</span>
+                <span>{post.progressUpdate}%</span>
+              </div>
+              <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-teal-500 rounded-full transition-all"
+                  style={{ width: `${post.progressUpdate}%` }}
+                ></div>
+              </div>
             </div>
           )
         )}
@@ -307,7 +335,12 @@ export default function HomeFeed({ posts, activeGoals, user, onEncourage, onView
           <h3 className="font-bold text-slate-800">Latest Updates</h3>
         </div>
         {posts.map(post => (
-          <PostCard key={post.id} post={post} onEncourage={() => onEncourage(post.id)} />
+          <PostCard
+            key={post.id}
+            post={post}
+            goals={activeGoals}
+            onEncourage={() => onEncourage(post.id)}
+          />
         ))}
       </div>
     </div>

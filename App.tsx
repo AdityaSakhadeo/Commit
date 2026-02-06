@@ -144,19 +144,14 @@ export default function App() {
         userId: user.id,
         userName: user.name,
         userAvatar: user.avatar,
+        goalId: goal.id,
+        linkedGoals: [{ goalId: goal.id, progress: goal.progress }],
         domain: goal.domain,
         type: 'STARTED',
         content: `I just committed to a new goal: ${goal.title}. Let's do this! 💪`,
         likes: 0,
         comments: 0,
-        timestamp: new Date().toISOString(),
-        relatedGoals: [
-          {
-            goalId: goal.id,
-            title: goal.title,
-            progress: goal.progress,
-          },
-        ],
+        timestamp: new Date().toISOString()
       };
       updatePosts([newPost, ...posts]);
     }
