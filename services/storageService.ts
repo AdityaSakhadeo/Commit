@@ -1,53 +1,28 @@
 import { User, Goal, Post, Reward } from '../types';
 
-const KEYS = {
-  USER: 'COMMIT_APP_USER_V1',
-  GOALS: 'COMMIT_APP_GOALS_V1',
-  POSTS: 'COMMIT_APP_POSTS_V1',
-  REWARDS: 'COMMIT_APP_REWARDS_V1',
-};
+// Database Schema
+interface DB {
+  user: User | null;
+  goals: Goal[];
+  posts: Post[];
+  rewards: Reward[];
+  version: number;
+}
 
-// --- Initial Seed Data ---
-const SEED_USER: User = {
+const DB_KEY = 'COMMIT_APP_DB_V2';
+
+// Seed Data
+export const SEED_USER: User = {
   id: 'u1',
-  name: 'Alex Rivera',
+  name: 'Aditya Sakhadeo',
   bio: 'Building better habits, one day at a time.',
   avatar: 'https://picsum.photos/200',
   stats: {
-    goalsCompleted: 3,
-    currentStreak: 12,
-    totalDays: 45
+    goalsCompleted: 0,
+    currentStreak: 0,
+    totalDays: 1
   }
 };
-
-const SEED_POSTS: Post[] = [
-  {
-    id: 'p1',
-    userId: 'u2',
-    userName: 'Sarah Jenkins',
-    userAvatar: 'https://picsum.photos/201',
-    domain: 'Fitness',
-    type: 'UPDATE',
-    content: 'Just finished my 5k run! Feeling exhausted but accomplished. 🏃‍♀️💨',
-    likes: 24,
-    comments: 4,
-    timestamp: '2h ago',
-    progressUpdate: 65,
-    image: 'https://picsum.photos/800/600'
-  },
-  {
-    id: 'p2',
-    userId: 'u3',
-    userName: 'Mike Chen',
-    userAvatar: 'https://picsum.photos/202',
-    domain: 'Learning',
-    type: 'STARTED',
-    content: 'Starting my journey to learn Python today. Wish me luck!',
-    likes: 56,
-    comments: 12,
-    timestamp: '5h ago'
-  }
-];
 
 const SEED_REWARDS: Reward[] = [
   { id: 'r1', title: 'Free Espresso', brand: 'Coffee House', logo: '☕', validity: 'Valid 7 Days', unlocked: true },
@@ -56,74 +31,162 @@ const SEED_REWARDS: Reward[] = [
   { id: 'r4', title: 'Healthy Meal Box', brand: 'FreshEats', logo: '🥗', validity: 'Locked', unlocked: false },
 ];
 
-export const StorageService = {
-  // Initialize data if not present
-  init: () => {
+const SEED_POSTS: Post[] = [
+  {
+      id: '1',
+      userId: 'u1',
+      userName: 'Aditya Sakhadeo',
+      userAvatar: 'https://picsum.photos/200',
+      goalId: 'u1_1',
+      domain: 'Fitness',
+      type: 'STARTED' ,
+      content: 'Just started my fitness journey!',
+      image: 'https://picsum.photos/400/300',
+      likes: 100,
+      comments: 5,
+      timestamp: '2026-01-01T00:00:00Z',
+      progressUpdate: 5,
+  }
+]
+class LocalDatabase {
+  private data: DB;
+
+  constructor() {
+    this.data = this.load();
+  }
+
+  private load(): DB {
     try {
-      if (!localStorage.getItem(KEYS.USER)) {
-        localStorage.setItem(KEYS.USER, JSON.stringify(SEED_USER));
-      }
-      if (!localStorage.getItem(KEYS.POSTS)) {
-        localStorage.setItem(KEYS.POSTS, JSON.stringify(SEED_POSTS));
-      }
-      if (!localStorage.getItem(KEYS.REWARDS)) {
-        localStorage.setItem(KEYS.REWARDS, JSON.stringify(SEED_REWARDS));
-      }
-      if (!localStorage.getItem(KEYS.GOALS)) {
-        localStorage.setItem(KEYS.GOALS, JSON.stringify([]));
+      const stored = localStorage.getItem(DB_KEY);
+      if (stored) {
+        return JSON.parse(stored);
       }
     } catch (e) {
-      console.error("Storage init failed", e);
+      console.error("Failed to load DB", e);
     }
-  },
-
-  getUser: (): User => {
-    try {
-      const data = localStorage.getItem(KEYS.USER);
-      return data ? JSON.parse(data) : SEED_USER;
-    } catch { return SEED_USER; }
-  },
-
-  saveUser: (user: User) => {
-    try { localStorage.setItem(KEYS.USER, JSON.stringify(user)); } catch {}
-  },
-
-  getGoals: (): Goal[] => {
-    try {
-      const data = localStorage.getItem(KEYS.GOALS);
-      return data ? JSON.parse(data) : [];
-    } catch { return []; }
-  },
-
-  saveGoals: (goals: Goal[]) => {
-    try { localStorage.setItem(KEYS.GOALS, JSON.stringify(goals)); } catch {}
-  },
-
-  getPosts: (): Post[] => {
-    try {
-      const data = localStorage.getItem(KEYS.POSTS);
-      return data ? JSON.parse(data) : SEED_POSTS;
-    } catch { return SEED_POSTS; }
-  },
-
-  savePosts: (posts: Post[]) => {
-    try { localStorage.setItem(KEYS.POSTS, JSON.stringify(posts)); } catch {}
-  },
-
-  getRewards: (): Reward[] => {
-    try {
-      const data = localStorage.getItem(KEYS.REWARDS);
-      return data ? JSON.parse(data) : SEED_REWARDS;
-    } catch { return SEED_REWARDS; }
-  },
-
-  saveRewards: (rewards: Reward[]) => {
-    try { localStorage.setItem(KEYS.REWARDS, JSON.stringify(rewards)); } catch {}
-  },
-  
-  // Helper to clear data (for debugging)
-  clearAll: () => {
-    localStorage.clear();
-    window.location.reload();
+    return {
+      user: null,
+      goals: [],
+      posts: [],
+      rewards: SEED_REWARDS,
+      version: 1
+    };
   }
+
+  private save() {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(this.data));
+    } catch (e) {
+      console.error("Failed to save DB", e);
+    }
+  }
+
+  // --- User Methods ---
+  getUser(): User | null {
+    return this.data.user;
+  }
+
+  setUser(user: User) {
+    this.data.user = user;
+    this.save();
+  }
+
+  removeUser() {
+    this.data.user = null;
+    this.save();
+  }
+
+  updateUserStats(stats: Partial<User['stats']>) {
+    if (this.data.user) {
+      this.data.user.stats = { ...this.data.user.stats, ...stats };
+      this.save();
+    }
+  }
+
+  // --- Goal Methods ---
+  getGoals(): Goal[] {
+    return this.data.goals;
+  }
+
+  addGoal(goal: Goal) {
+    this.data.goals.unshift(goal);
+    this.save();
+  }
+
+  updateGoal(updatedGoal: Goal) {
+    this.data.goals = this.data.goals.map(g => g.id === updatedGoal.id ? updatedGoal : g);
+    this.save();
+  }
+
+  deleteGoal(id: string) {
+    this.data.goals = this.data.goals.filter(g => g.id !== id);
+    this.save();
+  }
+
+  // --- Post Methods ---
+  getPosts(): Post[] {
+    return this.data.posts;
+  }
+
+  addPost(post: Post) {
+    this.data.posts.unshift(post);
+    this.save();
+  }
+
+  // --- Reward Methods ---
+  getRewards(): Reward[] {
+    return this.data.rewards;
+  }
+
+  updateRewards(rewards: Reward[]) {
+    this.data.rewards = rewards;
+    this.save();
+  }
+
+  // --- Utility ---
+  init() {
+    // If we want to seed initial posts only on first run ever:
+    if (this.data.posts.length === 0) {
+      this.data.posts = SEED_POSTS;
+      this.save();
+    }
+  }
+}
+
+// Singleton Instance
+const db = new LocalDatabase();
+
+export const StorageService = {
+  init: () => db.init(),
+  getUser: () => db.getUser(),
+  saveUser: (u: User) => db.setUser(u),
+  removeUser: () => db.removeUser(),
+  
+  getGoals: () => db.getGoals(),
+  saveGoals: (goals: Goal[]) => {
+    // This method exists for backward compatibility with App.tsx bulk updates, 
+    // but ideally we use updateGoal individually.
+    // We'll just replace the whole array for now to match App logic.
+    // A better backend would iterate and update.
+    // For this implementation, we can just assume 'goals' is the new state.
+    // However, the DB class doesn't have "setAllGoals", so let's hack it or fix App.tsx.
+    // Let's implement a bulk setter in the class?
+    // Actually, let's just expose a way to set the goals array for compatibility.
+    (db as any).data.goals = goals;
+    (db as any).save();
+  },
+
+  getPosts: () => db.getPosts(),
+  savePosts: (posts: Post[]) => {
+    (db as any).data.posts = posts;
+    (db as any).save();
+  },
+
+  getRewards: () => db.getRewards(),
+  saveRewards: (rewards: Reward[]) => db.updateRewards(rewards),
+  
+  // Expose direct methods for cleaner usage if we refactor App later
+  addGoal: (g: Goal) => db.addGoal(g),
+  updateGoal: (g: Goal) => db.updateGoal(g),
+  addPost: (p: Post) => db.addPost(p),
 };

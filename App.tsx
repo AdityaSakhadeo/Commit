@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Screen, Domain, Goal, Post, User, Reward, Task } from './types';
-import { MobileContainer, Header } from './components/Layout';
+import { MobileContainer } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
 import { PartyPopper, Gift, X } from 'lucide-react';
 import { SplashScreen } from './components/SplashScreen';
-import { StorageService } from './services/storageService';
+import { StorageService, SEED_USER } from './services/storageService';
 
 // Screens
 import Onboarding from './screens/Onboarding';
@@ -16,7 +16,7 @@ import GoalDetail from './screens/GoalDetail';
 import Rewards from './screens/Rewards';
 import Profile from './screens/Profile';
 
-// Simple confetti component replacement
+// Simple confetti component
 const ConfettiRain = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden z-50">
     {[...Array(20)].map((_, i) => (
@@ -41,25 +41,25 @@ const ConfettiRain = () => (
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  
   const [screen, setScreen] = useState<Screen>(Screen.ONBOARDING);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [activeGoal, setActiveGoal] = useState<Goal | null>(null);
   
-  // State initialized as empty, populated via useEffect
+  // Data State
   const [posts, setPosts] = useState<Post[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   
   const [showCelebration, setShowCelebration] = useState(false);
   const [justCompletedGoal, setJustCompletedGoal] = useState<Goal | null>(null);
 
-  // Initialize Data Layer
+  // 1. Initial Data Load
   useEffect(() => {
-    // Initialize storage (seed data if needed)
-    StorageService.init();
-
-    const loadData = () => {
+    // Artificial delay for splash screen
+    const timer = setTimeout(() => {
+      StorageService.init();
       const storedUser = StorageService.getUser();
       const storedGoals = StorageService.getGoals();
       const storedPosts = StorageService.getPosts();
@@ -70,18 +70,19 @@ export default function App() {
       setPosts(storedPosts);
       setRewards(storedRewards);
 
-      // Determine initial screen based on data
-      if (storedGoals.length > 0) {
-        setScreen(Screen.HOME);
+      // Navigate based on state
+      if (storedUser) {
+        if (storedGoals.length > 0) {
+          setScreen(Screen.HOME);
+        } else {
+          setScreen(Screen.GOAL_SELECTION);
+        }
+      } else {
+        setScreen(Screen.ONBOARDING);
       }
-    };
-
-    loadData();
-
-    // Fake loading delay for splash screen
-    const timer = setTimeout(() => {
       setLoading(false);
-    }, 2500);
+    }, 2000);
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -106,8 +107,31 @@ export default function App() {
     StorageService.saveRewards(newRewards);
   };
 
+  // Auth Handlers
+  const handleLogin = () => {
+    // Simulate login by setting seed user
+    const newUser = SEED_USER;
+    StorageService.saveUser(newUser);
+    setUser(newUser);
+    
+    // Determine where to go
+    const currentGoals = StorageService.getGoals();
+    if (currentGoals.length > 0) {
+      setScreen(Screen.HOME);
+    } else {
+      setScreen(Screen.GOAL_SELECTION);
+    }
+  };
 
-  // Helper to add a goal
+  const handleLogout = () => {
+    StorageService.removeUser();
+    setUser(null);
+    setScreen(Screen.ONBOARDING);
+    setActiveGoal(null);
+    setSelectedDomain(null);
+  };
+
+  // App Logic Handlers
   const handleAddGoal = (goal: Goal) => {
     const newGoals = [goal, ...goals];
     updateGoals(newGoals);
@@ -137,42 +161,135 @@ export default function App() {
     setScreen(Screen.HOME);
   };
 
+  // --- STREAK CALCULATION ENGINE ---
+  const calculateGoalStats = (goal: Goal, updatedTasks: Task[]): { streak: number, progress: number, completed: boolean } => {
+    // 1. Group Tasks by "Day X"
+    const dayMap = new Map<number, Task[]>();
+    let maxDay = 0;
+    
+    updatedTasks.forEach(t => {
+      const match = t.title.match(/^Day (\d+)/);
+      if (match) {
+        const dayNum = parseInt(match[1]);
+        if (dayNum > maxDay) maxDay = dayNum;
+        const existing = dayMap.get(dayNum) || [];
+        existing.push(t);
+        dayMap.set(dayNum, existing);
+      }
+    });
+
+    // 2. Determine which Virtual Day Numbers are fully completed (all tasks done)
+    const completedVirtualDays: number[] = [];
+    dayMap.forEach((tasks, dayNum) => {
+      if (tasks.length > 0 && tasks.every(t => t.completed)) {
+        completedVirtualDays.push(dayNum);
+      }
+    });
+
+    // 3. Map Virtual Days to Calendar Dates
+    const startDate = new Date(goal.startDate);
+    startDate.setHours(0,0,0,0);
+    
+    const completedDates = new Set<string>(); // Format: YYYY-MM-DD
+    let virtualDay = 1;
+    let currentDate = new Date(startDate);
+    
+    // Limit loop to avoid infinite loops if data is weird
+    while (virtualDay <= maxDay + 10) { 
+       const dateStr = currentDate.toISOString().split('T')[0];
+       
+       // Check if this calendar date is skipped
+       const isSkipped = (goal.skippedDates || []).some(sd => sd.startsWith(dateStr));
+       
+       if (isSkipped) {
+          // Move calendar forward, virtual day stays same
+          currentDate.setDate(currentDate.getDate() + 1);
+          continue;
+       }
+       
+       // If this virtual day is complete, mark the calendar date as complete
+       if (completedVirtualDays.includes(virtualDay)) {
+          completedDates.add(dateStr);
+       }
+       
+       virtualDay++;
+       currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // 4. Calculate Streak (Working backwards from Today)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    let checkDate = new Date(today);
+    let streak = 0;
+
+    // Check if we should start counting from today or yesterday
+    // If today is NOT done, but yesterday IS done, streak is alive.
+    if (!completedDates.has(todayStr)) {
+       checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    while (true) {
+       const dStr = checkDate.toISOString().split('T')[0];
+       if (completedDates.has(dStr)) {
+         streak++;
+         checkDate.setDate(checkDate.getDate() - 1);
+       } else {
+         break;
+       }
+    }
+
+    // 5. Calculate Progress
+    const totalTasks = updatedTasks.length;
+    const completedTasksCount = updatedTasks.filter(t => t.completed).length;
+    const progress = totalTasks === 0 ? 0 : Math.round((completedTasksCount / totalTasks) * 100);
+    const completed = progress === 100;
+
+    return { streak, progress, completed };
+  };
+
   const handleTaskToggle = (goalId: string, taskId: string) => {
     if (!user) return;
 
-    let goalCompleted = false;
-    let completedGoalObj: Goal | null = null;
+    let goalJustFinished = false;
+    let finishedGoalObj: Goal | null = null;
     let newRewards = [...rewards];
     let newUser = { ...user };
 
     const newGoals = goals.map(goal => {
       if (goal.id !== goalId) return goal;
 
+      // 1. Update tasks
       const updatedTasks = goal.tasks.map(t =>
         t.id === taskId ? { ...t, completed: !t.completed } : t
       );
 
-      const completedCount = updatedTasks.filter(t => t.completed).length;
-      const progress = Math.round((completedCount / updatedTasks.length) * 100);
+      // 2. Recalculate stats with the new engine
+      const { streak, progress, completed } = calculateGoalStats(goal, updatedTasks);
 
-      const taskJustCompleted = updatedTasks.find(t => t.id === taskId)?.completed;
-      const newStreak = taskJustCompleted ? goal.streak + 1 : Math.max(0, goal.streak - 1);
+      const updatedGoal = { 
+        ...goal, 
+        tasks: updatedTasks, 
+        progress, 
+        streak, 
+        completed 
+      };
 
-      const updatedGoal = { ...goal, tasks: updatedTasks, progress, streak: newStreak, completed: progress === 100 };
-
-      if (progress === 100 && goal.progress < 100) {
-        goalCompleted = true;
-        completedGoalObj = updatedGoal;
+      // Check if it just reached 100% completion (and wasn't before)
+      if (completed && !goal.completed) {
+        goalJustFinished = true;
+        finishedGoalObj = updatedGoal;
       }
 
       return updatedGoal;
     });
 
-    if (goalCompleted && completedGoalObj) {
-      setJustCompletedGoal(completedGoalObj);
+    if (goalJustFinished && finishedGoalObj) {
+      setJustCompletedGoal(finishedGoalObj);
       setShowCelebration(true);
       
-      // Unlock reward logic
+      // Unlock a random locked reward
       const locked = newRewards.filter(r => !r.unlocked);
       if (locked.length > 0) {
         const toUnlock = locked[0];
@@ -191,29 +308,42 @@ export default function App() {
     const newGoals = goals.map(goal => {
       if (goal.id !== goalId) return goal;
 
-      // Filter OUT the old tasks for this specific day
-      // Robust filtering to catch "Day X: ..." and "Day X (Title): ..."
       const prefix = `Day ${dayNumber}`;
       const otherTasks = goal.tasks.filter(t => !t.title.startsWith(`${prefix}:`) && !t.title.startsWith(`${prefix} `));
 
-      // Create new tasks objects
       const addedTasks: Task[] = newTasks.map((txt, idx) => ({
         id: `t-updated-${Date.now()}-${idx}`,
         title: `Day ${dayNumber}: ${txt}`,
         completed: false
       }));
 
-      // Find where to insert them roughly (optional, appending is simpler)
       const updatedTasks = [...otherTasks, ...addedTasks];
-      
       return { ...goal, tasks: updatedTasks };
     });
 
     updateGoals(newGoals);
-    // Also update active goal reference if it's the one being modified
     if (activeGoal && activeGoal.id === goalId) {
        setActiveGoal(newGoals.find(g => g.id === goalId) || null);
     }
+  };
+
+  const handleUseSkip = (goalId: string, date: Date) => {
+    const dateStr = date.toISOString();
+    const newGoals = goals.map(goal => {
+      if (goal.id !== goalId) return goal;
+      
+      const currentSkips = goal.skippedDates || [];
+      if (currentSkips.some(d => d.split('T')[0] === dateStr.split('T')[0])) return goal;
+
+      return {
+        ...goal,
+        skippedDates: [...currentSkips, dateStr]
+      };
+    });
+    updateGoals(newGoals);
+    if (activeGoal && activeGoal.id === goalId) {
+      setActiveGoal(newGoals.find(g => g.id === goalId) || null);
+   }
   };
 
   const closeCelebration = (goToRewards: boolean) => {
@@ -231,11 +361,13 @@ export default function App() {
   };
 
   const renderScreen = () => {
-    if (!user) return null; // Should be loaded by the time loading=false
+    if (!user) {
+      return <Onboarding onStart={handleLogin} />;
+    }
 
     switch (screen) {
       case Screen.ONBOARDING:
-        return <Onboarding onStart={() => setScreen(Screen.GOAL_SELECTION)} />;
+         return <Onboarding onStart={handleLogin} />;
       case Screen.GOAL_SELECTION:
         return (
           <GoalSelection 
@@ -275,7 +407,6 @@ export default function App() {
           />
         );
       case Screen.GOAL_DETAIL:
-        // Ensure we pass the latest version of the goal from the goals array
         const currentActiveGoal = goals.find(g => g.id === activeGoal?.id) || activeGoal;
         return currentActiveGoal ? (
           <GoalDetail 
@@ -283,6 +414,7 @@ export default function App() {
             onToggleTask={handleTaskToggle}
             onBack={() => setScreen(Screen.HOME)}
             onUpdateTasks={handleUpdateDayTasks}
+            onSkipDay={handleUseSkip}
           />
         ) : (
            <GoalSelection onSelect={() => {}} /> 
@@ -290,23 +422,32 @@ export default function App() {
       case Screen.REWARDS:
         return <Rewards rewards={rewards} />;
       case Screen.PROFILE:
-        return <Profile user={user} goals={goals} onGoalSelect={handleProfileGoalSelect} />;
+        return (
+          <Profile 
+            user={user} 
+            goals={goals} 
+            onGoalSelect={handleProfileGoalSelect} 
+            onLogout={handleLogout}
+          />
+        );
       default:
         return <HomeFeed posts={posts} activeGoals={goals} user={user} onEncourage={() => {}} onViewGoal={handleProfileGoalSelect} onToggleTask={handleTaskToggle} />;
     }
   };
 
   if (loading) {
-    return <SplashScreen />;
+    return <SplashScreen onBypass={() => setLoading(false)} />;
   }
 
-  const showNav = screen !== Screen.ONBOARDING && screen !== Screen.AI_SETUP;
-
   return (
-    <MobileContainer hasNav={showNav}>
-      {renderScreen()}
-      {showNav && <BottomNav currentScreen={screen} onNavigate={setScreen} />}
+    <MobileContainer hasNav={!!user && screen !== Screen.ONBOARDING}>
       
+      {renderScreen()}
+      
+      {user && screen !== Screen.AI_SETUP && screen !== Screen.ONBOARDING && screen !== Screen.CREATE_POST && (
+        <BottomNav currentScreen={screen} onNavigate={setScreen} />
+      )}
+
       {/* Celebration Overlay */}
       {showCelebration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 fade-in">

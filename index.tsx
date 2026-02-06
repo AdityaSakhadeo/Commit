@@ -8,8 +8,14 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+
+try {
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+} catch (error) {
+  console.error("Render Error:", error);
+  rootElement.innerHTML = '<div style="padding: 20px; color: red;">Application crashed. Check console for details.</div>';
+}

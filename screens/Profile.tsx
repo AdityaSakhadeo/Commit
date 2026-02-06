@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { User, Goal } from '../types';
-import { Settings, Award, Flame, Target, Award as AwardIcon, ChevronRight } from 'lucide-react';
+import { Settings, Award, Flame, Target, Award as AwardIcon, ChevronRight, LogOut } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
   goals: Goal[];
   onGoalSelect?: (goal: Goal) => void;
+  onLogout: () => void;
 }
 
-export default function Profile({ user, goals, onGoalSelect }: ProfileProps) {
+export default function Profile({ user, goals, onGoalSelect, onLogout }: ProfileProps) {
   const [activeTab, setActiveTab] = useState<'GOALS' | 'HISTORY'>('GOALS');
 
   return (
     <div className="min-h-full bg-slate-50 pb-20">
       <div className="bg-white pb-6 rounded-b-[2.5rem] shadow-sm border-b border-slate-100">
-        <div className="px-6 py-4 flex justify-end">
-           <button className="text-slate-400 hover:text-slate-600"><Settings size={24} /></button>
+        <div className="px-6 py-4 flex justify-between items-center">
+           <h2 className="text-lg font-bold text-slate-800">My Profile</h2>
+           <button onClick={onLogout} className="p-2 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 hover:text-rose-600 transition-colors">
+              <LogOut size={20} />
+           </button>
         </div>
         
         <div className="flex flex-col items-center text-center px-6">

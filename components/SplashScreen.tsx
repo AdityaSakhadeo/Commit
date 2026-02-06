@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 
-export const SplashScreen = () => {
+interface SplashScreenProps {
+  onBypass?: () => void;
+}
+
+export const SplashScreen: React.FC<SplashScreenProps> = ({ onBypass }) => {
+  const [showBypass, setShowBypass] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowBypass(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[100] bg-gradient-to-br from-teal-500 to-teal-700 flex flex-col items-center justify-center text-white fade-in">
       <div className="relative">
@@ -16,9 +27,18 @@ export const SplashScreen = () => {
         <p className="text-teal-100 font-medium tracking-wide text-sm uppercase">Progress Together</p>
       </div>
 
-      <div className="absolute bottom-12 flex flex-col items-center gap-3">
+      <div className="absolute bottom-12 flex flex-col items-center gap-3 w-full px-6">
         <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
         <p className="text-xs text-white/80 font-medium">Preparing your journey...</p>
+        
+        {showBypass && onBypass && (
+          <button 
+            onClick={onBypass}
+            className="mt-4 text-xs text-white/60 hover:text-white underline"
+          >
+            Taking too long? Tap to proceed.
+          </button>
+        )}
       </div>
     </div>
   );

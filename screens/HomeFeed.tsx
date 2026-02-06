@@ -1,7 +1,7 @@
 import React from 'react';
 import { Post, Goal, Story, User, Domain } from '../types';
 import { Header } from '../components/Layout';
-import { Heart, MessageCircle, PartyPopper, Plus, CheckCircle2, Circle, ChevronRight, Zap, Check } from 'lucide-react';
+import { Heart, MessageCircle, PartyPopper, Plus, CheckCircle2, Circle, ChevronRight, Zap, Check, Calendar, Settings } from 'lucide-react';
 
 interface HomeFeedProps {
   posts: Post[];
@@ -57,13 +57,56 @@ const StoriesRail: React.FC<{ user: User }> = ({ user }) => (
 );
 
 const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void; onToggleTask: (gid: string, tid: string) => void }> = ({ goals, onViewGoal, onToggleTask }) => {
-  // Collect the first uncompleted task from each goal
+  // Collect tasks specifically for TODAY or SETUP
   const actions = goals.map(g => {
     if (!g.tasks) return null;
-    const task = g.tasks.find(t => !t.completed);
-    if (!task) return null;
-    return { goal: g, task };
-  }).filter(item => item !== null) as { goal: Goal, task: { id: string, title: string, completed: boolean } }[];
+
+    // 1. Priority: Setup Tasks
+    // If there are uncompleted setup tasks, show them first regardless of the date.
+    const setupTask = g.tasks.find(t => t.title.startsWith("Setup:") && !t.completed);
+    if (setupTask) return { goal: g, task: setupTask, isSetup: true };
+
+    // 2. Logic for Today's Tasks
+    const start = new Date(g.startDate);
+    start.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    // If goal hasn't started yet
+    if (today < start) return null;
+
+    // Check if today is specifically a skipped day
+    const isTodaySkipped = (g.skippedDates || []).some(d => {
+        const skipDate = new Date(d);
+        skipDate.setHours(0,0,0,0);
+        return skipDate.getTime() === today.getTime();
+    });
+
+    if (isTodaySkipped) return null; // Relax today, no task to show
+
+    // Calculate "Effective Day" (Calendar Days - Skips that happened before today)
+    const oneDay = 1000 * 60 * 60 * 24;
+    const rawDay = Math.floor((today.getTime() - start.getTime()) / oneDay) + 1;
+    
+    const skipsBefore = (g.skippedDates || []).filter(d => {
+         const skipDate = new Date(d);
+         skipDate.setHours(0,0,0,0);
+         return skipDate.getTime() < today.getTime();
+    }).length;
+
+    const effectiveDay = rawDay - skipsBefore;
+    const prefix = `Day ${effectiveDay}`;
+
+    // Find the first uncompleted task matching strictly "Day X"
+    const dayTask = g.tasks.find(t => 
+        !t.completed && 
+        (t.title.startsWith(`${prefix}:`) || t.title.startsWith(`${prefix} `))
+    );
+
+    if (dayTask) return { goal: g, task: dayTask, isSetup: false };
+
+    return null;
+  }).filter((item): item is { goal: Goal, task: { id: string, title: string, completed: boolean }, isSetup: boolean } => item !== null);
 
   if (actions.length === 0) return null;
 
@@ -78,7 +121,7 @@ const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void;
          </div>
 
          <div className="space-y-3">
-            {actions.map(({ goal, task }) => (
+            {actions.map(({ goal, task, isSetup }) => (
               <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-teal-200 hover:bg-white transition-all group">
                 {/* Clickable Checkbox */}
                 <button 
@@ -92,12 +135,15 @@ const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void;
                 </button>
 
                 <div className="flex-1 cursor-pointer" onClick={() => onViewGoal(goal)}>
-                   <p className="text-sm font-semibold text-slate-800 leading-snug mb-1">{task.title}</p>
+                   <p className="text-sm font-semibold text-slate-800 leading-snug mb-1">
+                     {isSetup ? task.title.replace('Setup: ', 'Setup: ') : task.title.replace(/^Day \d+.*?: /, '')}
+                   </p>
                    <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${getDomainColor(goal.domain)}`}>
                         {goal.domain}
                       </span>
                       <span className="text-xs text-slate-400 font-medium truncate">• {goal.title}</span>
+                      {isSetup && <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded flex items-center gap-0.5"><Settings size={10} /> Prep</span>}
                    </div>
                 </div>
 

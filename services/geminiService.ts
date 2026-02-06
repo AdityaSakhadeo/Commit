@@ -1,7 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Domain, Task } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safety check: Safely access process.env using optional chaining
+// This prevents crashes in environments where process exists but process.env is undefined
+const apiKey = (typeof process !== 'undefined' && process?.env?.API_KEY) ? process.env.API_KEY : '';
+
+// Initialize AI. Note: If apiKey is empty, calls will fail, but the app won't crash on load.
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 interface DayPlan {
   day_title: string;
