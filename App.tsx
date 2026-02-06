@@ -149,7 +149,14 @@ export default function App() {
         content: `I just committed to a new goal: ${goal.title}. Let's do this! 💪`,
         likes: 0,
         comments: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        relatedGoals: [
+          {
+            goalId: goal.id,
+            title: goal.title,
+            progress: goal.progress,
+          },
+        ],
       };
       updatePosts([newPost, ...posts]);
     }

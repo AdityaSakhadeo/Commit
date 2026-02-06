@@ -12,29 +12,43 @@ interface CreatePostProps {
 
 export default function CreatePost({ user, activeGoals, onPost, onCancel }: CreatePostProps) {
   const [content, setContent] = useState('');
-  const [selectedGoalId, setSelectedGoalId] = useState<string>(activeGoals[0]?.id || '');
+  const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>(
+    activeGoals[0]?.id ? [activeGoals[0].id] : []
+  );
   const [postType, setPostType] = useState<'UPDATE' | 'COMPLETED'>('UPDATE');
   const [hasImage, setHasImage] = useState(false);
   
-  const selectedGoal = activeGoals.find(g => g.id === selectedGoalId);
+  const selectedGoals = activeGoals.filter(g => selectedGoalIds.includes(g.id));
 
   const handleSubmit = () => {
-    if (!content || !selectedGoal) return;
+    if (!content || selectedGoals.length === 0) return;
+
+    const primaryGoal = selectedGoals[0];
+    const relatedGoals = selectedGoals.map(g => ({
+      goalId: g.id,
+      title: g.title,
+      progress: g.progress,
+    }));
 
     const newPost: Post = {
       id: Date.now().toString(),
       userId: user.id,
       userName: user.name,
       userAvatar: user.avatar,
-      goalId: selectedGoal.id,
-      domain: selectedGoal.domain,
+      goalId: primaryGoal.id,
+      domain: primaryGoal.domain,
       type: postType,
       content,
       likes: 0,
       comments: 0,
       timestamp: new Date().toISOString(),
-      progressUpdate: selectedGoal.progress,
-      image: hasImage ? (postType === 'COMPLETED' ? 'https://picsum.photos/id/102/800/600' : 'https://picsum.photos/id/180/800/600') : undefined
+      progressUpdate: primaryGoal.progress,
+      relatedGoals,
+      image: hasImage
+        ? (postType === 'COMPLETED'
+            ? 'https://picsum.photos/id/102/800/600'
+            : 'https://picsum.photos/id/180/800/600')
+        : undefined
     };
 
     onPost(newPost);
@@ -68,18 +82,36 @@ export default function CreatePost({ user, activeGoals, onPost, onCancel }: Crea
            <div className="flex-1">
              <h3 className="font-bold text-slate-800 text-lg">{user.name}</h3>
              
-             {/* Goal Selector */}
-             <div className="relative inline-block mt-1">
-               <select 
-                 className="appearance-none bg-teal-50 text-teal-700 text-xs font-bold py-1.5 pl-3 pr-8 rounded-lg outline-none cursor-pointer border border-teal-100 hover:border-teal-200 transition-colors w-full"
-                 value={selectedGoalId}
-                 onChange={(e) => setSelectedGoalId(e.target.value)}
-               >
-                 {activeGoals.map(g => (
-                   <option key={g.id} value={g.id}>{g.title}</option>
-                 ))}
-               </select>
-               <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-teal-500 pointer-events-none" />
+             {/* Goal Selector - multi-select via toggle pills */}
+             <div className="mt-2">
+               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                 Tag goals you worked on
+               </p>
+               <div className="flex flex-wrap gap-2">
+                 {activeGoals.map(g => {
+                   const isSelected = selectedGoalIds.includes(g.id);
+                   return (
+                     <button
+                       key={g.id}
+                       type="button"
+                       onClick={() => {
+                         setSelectedGoalIds(prev =>
+                           prev.includes(g.id)
+                             ? prev.filter(id => id !== g.id)
+                             : [...prev, g.id]
+                         );
+                       }}
+                       className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
+                         isSelected
+                           ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                           : 'bg-teal-50 text-teal-700 border-teal-100 hover:border-teal-300'
+                       }`}
+                     >
+                       {g.title}
+                     </button>
+                   );
+                 })}
+               </div>
              </div>
            </div>
         </div>

@@ -157,7 +157,7 @@ const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void;
 
          <div className="space-y-3">
             {actions.map(({ goal, task, isSetup }) => (
-              <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-teal-200 hover:bg-white transition-all group">
+              <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-teal-200 hover:bg-white transition-all group overflow-hidden">
                 {/* Clickable Checkbox */}
                 <button 
                   onClick={(e) => {
@@ -169,15 +169,15 @@ const TodaysActionList: React.FC<{ goals: Goal[]; onViewGoal: (g: Goal) => void;
                     {task.completed && <Check size={14} className="text-white" />}
                 </button>
 
-                <div className="flex-1 cursor-pointer" onClick={() => onViewGoal(goal)}>
-                   <p className="text-sm font-semibold text-slate-800 leading-snug mb-1">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onViewGoal(goal)}>
+                   <p className="text-sm font-semibold text-slate-800 leading-snug mb-1 break-words">
                      {isSetup ? task.title.replace('Setup: ', 'Setup: ') : task.title.replace(/^Day \d+.*?: /, '')}
                    </p>
                    <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${getDomainColor(goal.domain)}`}>
                         {goal.domain}
                       </span>
-                      <span className="text-xs text-slate-400 font-medium truncate">• {goal.title}</span>
+                      <span className="text-xs text-slate-400 font-medium">• {goal.title}</span>
                       {isSetup && <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded flex items-center gap-0.5"><Settings size={10} /> Prep</span>}
                    </div>
                 </div>
@@ -231,16 +231,36 @@ const PostCard: React.FC<{ post: Post; onEncourage: () => void }> = ({ post, onE
           </div>
         )}
         
-        {post.progressUpdate !== undefined && (
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-             <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
-               <span>Goal Progress</span>
-               <span>{post.progressUpdate}%</span>
-             </div>
-             <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-               <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${post.progressUpdate}%` }}></div>
-             </div>
+        {/* Goal names + progress */}
+        {post.relatedGoals && post.relatedGoals.length > 0 ? (
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+            {post.relatedGoals.map(g => (
+              <div key={g.goalId}>
+                <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
+                  <span className="truncate pr-2">{g.title}</span>
+                  <span>{g.progress}%</span>
+                </div>
+                <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal-500 rounded-full transition-all"
+                    style={{ width: `${g.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
           </div>
+        ) : (
+          post.progressUpdate !== undefined && (
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+               <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
+                 <span>Goal Progress</span>
+                 <span>{post.progressUpdate}%</span>
+               </div>
+               <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                 <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${post.progressUpdate}%` }}></div>
+               </div>
+            </div>
+          )
         )}
       </div>
 
