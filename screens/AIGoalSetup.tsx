@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Domain, Goal, Task } from '../types';
 import { Header } from '../components/Layout';
 import { generateGoalPlan, suggestGoals, AIPlanResponse } from '../services/geminiService';
-import { Wand2, RefreshCw, ChevronRight, X, Sparkles, CalendarDays, Repeat, ClipboardList } from 'lucide-react';
+import { Wand2, RefreshCw, ChevronRight, Sparkles, CalendarDays, Repeat, ClipboardList } from 'lucide-react';
 
 interface AIGoalSetupProps {
   domain: Domain;
@@ -90,6 +90,7 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
 
     const newGoal: Goal = {
       id: Date.now().toString(),
+      userId: 'temp', // Placeholder, will be overwritten by the handler in App.tsx
       title: generatedPlan.title,
       domain: domain,
       progress: 0,
@@ -182,7 +183,7 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{generatedPlan.title}</h2>
                     <span className="inline-block mt-2 px-3 py-1 bg-teal-50 text-teal-700 text-xs rounded-full font-bold uppercase tracking-wide border border-teal-100">{domain}</span>
                  </div>
-                 <button onClick={() => setGeneratedPlan(null)} className="text-sm text-slate-400 hover:text-slate-600 underline">Edit</button>
+                 {/* Edit Button Removed as per request */}
               </div>
               
               <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl italic border border-slate-100">

@@ -4,10 +4,11 @@ import { MobileContainer } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
 import { PartyPopper, Gift, X } from 'lucide-react';
 import { SplashScreen } from './components/SplashScreen';
-import { StorageService, SEED_USER } from './services/storageService';
+import { StorageService } from './services/storageService';
 
 // Screens
 import Onboarding from './screens/Onboarding';
+import Auth from './screens/Auth';
 import GoalSelection from './screens/GoalSelection';
 import AIGoalSetup from './screens/AIGoalSetup';
 import HomeFeed from './screens/HomeFeed';
@@ -15,6 +16,8 @@ import CreatePost from './screens/CreatePost';
 import GoalDetail from './screens/GoalDetail';
 import Rewards from './screens/Rewards';
 import Profile from './screens/Profile';
+import SearchUsers from './screens/SearchUsers';
+import MyGoals from './screens/MyGoals';
 
 // Simple confetti component
 const ConfettiRain = () => (
@@ -55,23 +58,27 @@ export default function App() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [justCompletedGoal, setJustCompletedGoal] = useState<Goal | null>(null);
 
-  // 1. Initial Data Load
+  // 1. Initial Data Load & Auth Sync
   useEffect(() => {
-    // Artificial delay for splash screen
-    const timer = setTimeout(() => {
+    const initApp = async () => {
+      // Initialize Storage
       StorageService.init();
-      const storedUser = StorageService.getUser();
-      const storedGoals = StorageService.getGoals();
+      
+      // Load Posts (Public Feed)
       const storedPosts = StorageService.getPosts();
-      const storedRewards = StorageService.getRewards();
-
-      setUser(storedUser);
-      setGoals(storedGoals);
       setPosts(storedPosts);
-      setRewards(storedRewards);
 
-      // Navigate based on state
-      if (storedUser) {
+      // Check for active session
+      const currentUser = StorageService.getCurrentUser();
+      
+      if (currentUser) {
+        setUser(currentUser);
+        // Load User Data
+        const storedGoals = StorageService.getGoals(); 
+        const storedRewards = StorageService.getRewards();
+        setGoals(storedGoals);
+        setRewards(storedRewards);
+        
         if (storedGoals.length > 0) {
           setScreen(Screen.HOME);
         } else {
@@ -80,16 +87,17 @@ export default function App() {
       } else {
         setScreen(Screen.ONBOARDING);
       }
-      setLoading(false);
-    }, 2000);
 
-    return () => clearTimeout(timer);
+      setTimeout(() => setLoading(false), 1500);
+    };
+
+    initApp();
   }, []);
 
   // Sync helpers
   const updateUser = (newUser: User) => {
     setUser(newUser);
-    StorageService.saveUser(newUser);
+    StorageService.updateUser(newUser);
   };
 
   const updateGoals = (newGoals: Goal[]) => {
@@ -97,26 +105,19 @@ export default function App() {
     StorageService.saveGoals(newGoals);
   };
 
-  const updatePosts = (newPosts: Post[]) => {
-    setPosts(newPosts);
-    StorageService.savePosts(newPosts);
-  };
-
   const updateRewards = (newRewards: Reward[]) => {
     setRewards(newRewards);
-    StorageService.saveRewards(newRewards);
   };
 
   // Auth Handlers
-  const handleLogin = () => {
-    // Simulate login by setting seed user
-    const newUser = SEED_USER;
-    StorageService.saveUser(newUser);
-    setUser(newUser);
+  const handleAuthSuccess = (loggedInUser: User) => {
+    setUser(loggedInUser);
     
-    // Determine where to go
-    const currentGoals = StorageService.getGoals();
-    if (currentGoals.length > 0) {
+    // Refresh Data for new user
+    const userGoals = StorageService.getGoals();
+    setGoals(userGoals);
+    
+    if (userGoals.length > 0) {
       setScreen(Screen.HOME);
     } else {
       setScreen(Screen.GOAL_SELECTION);
@@ -124,41 +125,54 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    StorageService.removeUser();
+    StorageService.logout();
     setUser(null);
-    setScreen(Screen.ONBOARDING);
+    setGoals([]);
     setActiveGoal(null);
-    setSelectedDomain(null);
+    setScreen(Screen.ONBOARDING);
   };
 
   // App Logic Handlers
   const handleAddGoal = (goal: Goal) => {
-    const newGoals = [goal, ...goals];
+    if (!user) return;
+    
+    // Ensure goal is owned by user
+    const goalWithUser = { ...goal, userId: user.id };
+    
+    const newGoals = [goalWithUser, ...goals];
     updateGoals(newGoals);
-    setActiveGoal(goal);
+    setActiveGoal(goalWithUser);
     
     // Auto-create a "Started" post
-    if (user) {
-      const newPost: Post = {
-        id: Date.now().toString(),
-        userId: user.id,
-        userName: user.name,
-        userAvatar: user.avatar,
-        domain: goal.domain,
-        type: 'STARTED',
-        content: `I just committed to a new goal: ${goal.title}. Let's do this! 💪`,
-        likes: 0,
-        comments: 0,
-        timestamp: 'Just now'
-      };
-      updatePosts([newPost, ...posts]);
-    }
+    const newPost: Post = {
+      id: Date.now().toString(),
+      userId: user.id,
+      userName: user.name,
+      userAvatar: user.avatar,
+      domain: goal.domain,
+      type: 'STARTED',
+      content: `I just committed to a new goal: ${goal.title}. Let's do this! 💪`,
+      likes: 0,
+      likedBy: [],
+      comments: 0,
+      commentsList: [],
+      timestamp: 'Just now'
+    };
+    StorageService.addPost(newPost);
+    setPosts(StorageService.getPosts()); // Refresh feed
+    
     setScreen(Screen.HOME);
   };
 
   const handlePostCreate = (post: Post) => {
-    updatePosts([post, ...posts]);
+    StorageService.addPost(post);
+    setPosts(StorageService.getPosts());
     setScreen(Screen.HOME);
+  };
+
+  const handleEncourage = (postId: string) => {
+    StorageService.addComment(postId, "You got this! 🔥");
+    setPosts(StorageService.getPosts());
   };
 
   // --- STREAK CALCULATION ENGINE ---
@@ -361,13 +375,20 @@ export default function App() {
   };
 
   const renderScreen = () => {
+    // Auth Routes
     if (!user) {
-      return <Onboarding onStart={handleLogin} />;
+      switch (screen) {
+        case Screen.LOGIN:
+          return <Auth mode="LOGIN" onAuthSuccess={handleAuthSuccess} onSwitchMode={() => setScreen(Screen.SIGNUP)} />;
+        case Screen.SIGNUP:
+          return <Auth mode="SIGNUP" onAuthSuccess={handleAuthSuccess} onSwitchMode={() => setScreen(Screen.LOGIN)} />;
+        default:
+          return <Onboarding onNavigate={setScreen} />;
+      }
     }
 
+    // App Routes
     switch (screen) {
-      case Screen.ONBOARDING:
-         return <Onboarding onStart={handleLogin} />;
       case Screen.GOAL_SELECTION:
         return (
           <GoalSelection 
@@ -392,9 +413,26 @@ export default function App() {
             posts={posts} 
             activeGoals={goals} 
             user={user}
-            onEncourage={(id) => console.log('Liked', id)} 
+            onEncourage={handleEncourage}
             onViewGoal={handleProfileGoalSelect}
             onToggleTask={handleTaskToggle}
+            onUserUpdate={updateUser}
+            onNavigate={setScreen}
+          />
+        );
+      case Screen.SEARCH:
+        return (
+          <SearchUsers 
+            user={user} 
+            onUserUpdate={updateUser} 
+          />
+        );
+      case Screen.GOALS:
+        return (
+          <MyGoals 
+            goals={goals} 
+            onGoalSelect={handleProfileGoalSelect} 
+            onAddGoal={() => setScreen(Screen.GOAL_SELECTION)}
           />
         );
       case Screen.CREATE_POST:
@@ -431,7 +469,7 @@ export default function App() {
           />
         );
       default:
-        return <HomeFeed posts={posts} activeGoals={goals} user={user} onEncourage={() => {}} onViewGoal={handleProfileGoalSelect} onToggleTask={handleTaskToggle} />;
+        return <HomeFeed posts={posts} activeGoals={goals} user={user} onEncourage={() => {}} onViewGoal={handleProfileGoalSelect} onToggleTask={handleTaskToggle} onUserUpdate={updateUser} onNavigate={setScreen} />;
     }
   };
 
@@ -440,11 +478,11 @@ export default function App() {
   }
 
   return (
-    <MobileContainer hasNav={!!user && screen !== Screen.ONBOARDING}>
+    <MobileContainer hasNav={!!user && screen !== Screen.AI_SETUP && screen !== Screen.GOAL_SELECTION && screen !== Screen.CREATE_POST && screen !== Screen.GOAL_DETAIL && screen !== Screen.ONBOARDING}>
       
       {renderScreen()}
       
-      {user && screen !== Screen.AI_SETUP && screen !== Screen.ONBOARDING && screen !== Screen.CREATE_POST && (
+      {user && screen !== Screen.AI_SETUP && screen !== Screen.GOAL_SELECTION && screen !== Screen.CREATE_POST && screen !== Screen.GOAL_DETAIL && (
         <BottomNav currentScreen={screen} onNavigate={setScreen} />
       )}
 

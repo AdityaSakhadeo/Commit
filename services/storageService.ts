@@ -1,71 +1,109 @@
-import { User, Goal, Post, Reward } from '../types';
+import { User, Goal, Post, Reward, Story, Comment } from '../types';
 
-// Database Schema
+// Extended User Type for Storage (includes password)
+interface StoredUser extends User {
+  password: string; // In a real app, this would be hashed.
+}
+
 interface DB {
-  user: User | null;
-  goals: Goal[];
-  posts: Post[];
-  rewards: Reward[];
+  users: StoredUser[]; // All registered users
+  currentUser: string | null; // ID of currently logged in user
+  goals: Goal[]; // All goals from all users
+  posts: Post[]; // All posts
+  rewards: Reward[]; // All rewards
+  stories: Story[]; // Stories
   version: number;
 }
 
-const DB_KEY = 'COMMIT_APP_DB_V2';
+const DB_KEY = 'COMMIT_APP_LOCAL_DB_V5'; // Incremented version to force refresh if needed
 
-// Seed Data
-export const SEED_USER: User = {
-  id: 'u1',
-  name: 'Aditya Sakhadeo',
-  bio: 'Building better habits, one day at a time.',
-  avatar: 'https://picsum.photos/200',
-  stats: {
-    goalsCompleted: 0,
-    currentStreak: 0,
-    totalDays: 1
-  }
-};
-
-const SEED_REWARDS: Reward[] = [
-  { id: 'r1', title: 'Free Espresso', brand: 'COEP Canteen', logo: '☕', validity: 'Valid 7 Days', unlocked: true },
+const DEFAULT_REWARDS: Reward[] = [
+  { id: 'r1', title: 'Free Espresso', brand: 'Coffee House', logo: '☕', validity: 'Valid 7 Days', unlocked: true },
   { id: 'r2', title: '20% Off Gym Gear', brand: 'FitStore', logo: '💪', validity: 'Valid 30 Days', unlocked: true },
   { id: 'r3', title: 'Free Audiobook', brand: 'Audible', logo: '🎧', validity: 'Locked', unlocked: false },
   { id: 'r4', title: 'Healthy Meal Box', brand: 'FreshEats', logo: '🥗', validity: 'Locked', unlocked: false },
 ];
 
-const SEED_POSTS: Post[] = [
-  {
-      id: '1',
-      userId: 'u1',
-      userName: 'Aditya Sakhadeo',
-      userAvatar: 'https://picsum.photos/200',
-      goalId: 'u1_1',
-      domain: 'Fitness',
-      type: 'STARTED' ,
-      content: 'Just started my fitness journey!',
-      image: 'https://picsum.photos/400/300',
-      likes: 100,
-      comments: 5,
-      timestamp: '2026-01-01T00:00:00Z',
-      progressUpdate: 5,
-  }
-]
+// --- EXTENSIVE DUMMY DATA GENERATION ---
 
-const SEED_GOALS: Goal[] = [
-  {
-      id: '1',
-      title: 'Walk 10,000 Steps Daily',
-      domain: 'Fitness',
-      progress: 10, // 0 to 100
-      tasks: [{id : 't1', title: 'Morning Walk', completed: true}],
-      streak: 2,
-      completed:false,
-      startDate: '2026-01-01',
-      totalSkipsAllowed: 1,
-      skippedDates: ['2026-01-01'],  // ISO date strings of days that were skipped/shifted
-      // Helper for streak calculation (optional persistence, mostly computed)
-      completedDayNumbers: [1, 2, 3], 
+const NAMES = ['Sarah', 'Mike', 'Jessica', 'Alex', 'Emma', 'David', 'Olivia', 'James', 'Sophia', 'Daniel', 'Liam', 'Maya', 'Noah', 'Isabella', 'Ethan'];
+const DOMAINS = ['Fitness', 'Career', 'Learning', 'Mental Health', 'Finance', 'Habits'];
+const BIOS = [
+  'Fitness Enthusiast 💪', 'Learning React Native ⚛️', 'Marathon Runner 🏃‍♂️', 'Mindfulness & Yoga 🧘‍♀️', 
+  'Financial Freedom 2025 🚀', 'Bookworm 📚', 'Digital Nomad 🌍', 'Health is Wealth 🥗', 'Coding Ninja 💻'
+];
 
+// Generate Users
+const SEED_USERS: StoredUser[] = NAMES.map((name, i) => ({
+  id: `u-${name.toLowerCase()}`,
+  name: name,
+  email: `${name.toLowerCase()}@test.com`,
+  password: '123',
+  bio: BIOS[i % BIOS.length],
+  avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+  following: [],
+  followers: [],
+  stats: { 
+    goalsCompleted: Math.floor(Math.random() * 10), 
+    currentStreak: Math.floor(Math.random() * 30), 
+    totalDays: Math.floor(Math.random() * 100) 
   }
-]
+}));
+
+// Generate Posts
+const GENERATED_POSTS: Post[] = [];
+SEED_USERS.forEach((user, i) => {
+  // Each user gets 1-3 posts
+  const numPosts = Math.floor(Math.random() * 3) + 1;
+  for (let j = 0; j < numPosts; j++) {
+    const type = j === 0 ? 'STARTED' : (Math.random() > 0.7 ? 'COMPLETED' : 'UPDATE');
+    const domain = DOMAINS[Math.floor(Math.random() * DOMAINS.length)] as any;
+    
+    let content = '';
+    let image = undefined;
+
+    if (type === 'STARTED') content = `I'm committing to a new ${domain} goal! Wish me luck.`;
+    else if (type === 'COMPLETED') {
+        content = `I did it! 🎉 Completed my 30-day ${domain} challenge.`;
+        image = `https://picsum.photos/id/${i * 10 + j + 50}/800/600`;
+    }
+    else {
+        content = `Day ${Math.floor(Math.random() * 20) + 1} update: Feeling great about my progress.`;
+        if (Math.random() > 0.5) image = `https://picsum.photos/id/${i * 10 + j + 10}/800/600`;
+    }
+
+    GENERATED_POSTS.push({
+      id: `p-${user.id}-${j}`,
+      userId: user.id,
+      userName: user.name,
+      userAvatar: user.avatar,
+      domain: domain,
+      type: type,
+      content: content,
+      image: image,
+      likes: Math.floor(Math.random() * 50),
+      likedBy: [],
+      comments: Math.floor(Math.random() * 10),
+      commentsList: [],
+      timestamp: `${Math.floor(Math.random() * 24)}h ago`,
+      progressUpdate: type === 'UPDATE' ? Math.floor(Math.random() * 90) : undefined
+    });
+  }
+});
+
+// Generate Stories
+const GENERATED_STORIES: Story[] = SEED_USERS.slice(0, 8).map((user, i) => ({
+  id: `s-${user.id}`,
+  userId: user.id,
+  userName: user.name,
+  userAvatar: user.avatar,
+  imageUrl: `https://picsum.photos/id/${i * 15 + 100}/600/1200`,
+  caption: i % 2 === 0 ? "Morning routine ✅" : undefined,
+  hasUnseen: Math.random() > 0.3,
+  timestamp: `${i + 1}h ago`
+}));
+
+
 class LocalDatabase {
   private data: DB;
 
@@ -77,17 +115,40 @@ class LocalDatabase {
     try {
       const stored = localStorage.getItem(DB_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        
+        // Merge seeded users if they don't exist (prevents overwriting real data on reload but ensures dummy data exists)
+        SEED_USERS.forEach(seedUser => {
+          if (!parsed.users.find((u: User) => u.id === seedUser.id)) {
+            parsed.users.push(seedUser);
+          }
+        });
+
+        // If posts are empty, re-seed
+        if (parsed.posts.length < 5) {
+             parsed.posts = [...GENERATED_POSTS, ...parsed.posts];
+        }
+
+        // If stories are empty/low, re-seed
+        if (!parsed.stories || parsed.stories.length < 3) {
+            parsed.stories = GENERATED_STORIES;
+        }
+
+        return parsed;
       }
     } catch (e) {
       console.error("Failed to load DB", e);
     }
+    
+    // Initial Load
     return {
-      user: null,
+      users: [...SEED_USERS],
+      currentUser: null,
       goals: [],
-      posts: [],
-      rewards: SEED_REWARDS,
-      version: 1
+      posts: GENERATED_POSTS.sort(() => 0.5 - Math.random()), // Shuffle posts
+      rewards: DEFAULT_REWARDS,
+      stories: GENERATED_STORIES,
+      version: 5
     };
   }
 
@@ -99,117 +160,299 @@ class LocalDatabase {
     }
   }
 
-  // --- User Methods ---
-  getUser(): User | null {
-    return this.data.user;
-  }
+  // --- Auth Methods ---
 
-  setUser(user: User) {
-    this.data.user = user;
-    this.save();
-  }
-
-  removeUser() {
-    this.data.user = null;
-    this.save();
-  }
-
-  updateUserStats(stats: Partial<User['stats']>) {
-    if (this.data.user) {
-      this.data.user.stats = { ...this.data.user.stats, ...stats };
-      this.save();
+  signup(name: string, email: string, password: string): { success: boolean; message?: string; user?: User } {
+    if (this.data.users.find(u => u.email === email)) {
+      return { success: false, message: 'Email already exists' };
     }
+
+    const newUser: StoredUser = {
+      id: `u-${Date.now()}`,
+      name,
+      email,
+      password,
+      bio: 'Ready to commit!',
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      following: [],
+      followers: [],
+      stats: { goalsCompleted: 0, currentStreak: 0, totalDays: 1 }
+    };
+
+    this.data.users.push(newUser);
+    this.data.currentUser = newUser.id;
+    this.save();
+
+    const { password: _, ...safeUser } = newUser;
+    return { success: true, user: safeUser };
   }
 
-  // --- Goal Methods ---
-  getGoals(): Goal[] {
-    return this.data.goals;
+  login(email: string, password: string): { success: boolean; message?: string; user?: User } {
+    const user = this.data.users.find(u => u.email === email && u.password === password);
+    if (!user) {
+      return { success: false, message: 'Invalid credentials' };
+    }
+
+    this.data.currentUser = user.id;
+    this.save();
+
+    const { password: _, ...safeUser } = user;
+    return { success: true, user: safeUser };
   }
 
-  addGoal(goal: Goal) {
-    this.data.goals.unshift(goal);
+  logout() {
+    this.data.currentUser = null;
     this.save();
   }
 
-  updateGoal(updatedGoal: Goal) {
-    this.data.goals = this.data.goals.map(g => g.id === updatedGoal.id ? updatedGoal : g);
+  getCurrentUser(): User | null {
+    if (!this.data.currentUser) return null;
+    const user = this.data.users.find(u => u.id === this.data.currentUser);
+    if (!user) return null;
+    const { password: _, ...safeUser } = user;
+    return safeUser;
+  }
+
+  getUserById(id: string): User | null {
+    const user = this.data.users.find(u => u.id === id);
+    if (!user) return null;
+    const { password: _, ...safeUser } = user;
+    return safeUser;
+  }
+
+  updateCurrentUser(updates: Partial<User>) {
+    if (!this.data.currentUser) return;
+    this.data.users = this.data.users.map(u => 
+      u.id === this.data.currentUser ? { ...u, ...updates } : u
+    );
     this.save();
   }
 
-  deleteGoal(id: string) {
-    this.data.goals = this.data.goals.filter(g => g.id !== id);
+  searchUsers(query: string): User[] {
+    const q = query.toLowerCase();
+    const currentUserId = this.data.currentUser;
+    return this.data.users
+      .filter(u => 
+        u.id !== currentUserId && 
+        (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      )
+      .map(u => {
+        const { password, ...safe } = u;
+        return safe;
+      });
+  }
+
+  getSuggestedUsers(): User[] {
+    const currentUserId = this.data.currentUser;
+    return this.data.users
+      .filter(u => u.id !== currentUserId)
+      .slice(0, 10) // Return first 10 for now as suggestions
+      .map(u => {
+        const { password, ...safe } = u;
+        return safe;
+      });
+  }
+
+  // --- Social Actions ---
+
+  toggleLike(postId: string): Post | null {
+    const userId = this.data.currentUser;
+    if (!userId) return null;
+
+    const postIndex = this.data.posts.findIndex(p => p.id === postId);
+    if (postIndex === -1) return null;
+
+    const post = this.data.posts[postIndex];
+    const likedBy = post.likedBy || [];
+    const isLiked = likedBy.includes(userId);
+
+    let newLikedBy;
+    if (isLiked) {
+      newLikedBy = likedBy.filter(id => id !== userId);
+    } else {
+      newLikedBy = [...likedBy, userId];
+    }
+
+    const updatedPost = {
+      ...post,
+      likedBy: newLikedBy,
+      likes: newLikedBy.length
+    };
+
+    this.data.posts[postIndex] = updatedPost;
+    this.save();
+    return updatedPost;
+  }
+
+  addComment(postId: string, text: string): Post | null {
+    const userId = this.data.currentUser;
+    if (!userId) return null;
+
+    const user = this.data.users.find(u => u.id === userId);
+    if (!user) return null;
+
+    const postIndex = this.data.posts.findIndex(p => p.id === postId);
+    if (postIndex === -1) return null;
+
+    const post = this.data.posts[postIndex];
+    const newComment: Comment = {
+      id: `c-${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      text: text,
+      timestamp: 'Just now'
+    };
+
+    const updatedPost = {
+      ...post,
+      commentsList: [newComment, ...(post.commentsList || [])],
+      comments: (post.comments || 0) + 1
+    };
+
+    this.data.posts[postIndex] = updatedPost;
+    this.save();
+    return updatedPost;
+  }
+
+  followUser(targetUserId: string): { success: boolean, updatedUser: User } {
+    const currentUserId = this.data.currentUser;
+    if (!currentUserId) throw new Error("Not logged in");
+
+    // Update current user (Follower)
+    this.data.users = this.data.users.map(u => {
+      if (u.id === currentUserId) {
+        if (!u.following.includes(targetUserId)) {
+          return { ...u, following: [...u.following, targetUserId] };
+        }
+      }
+      return u;
+    });
+
+    // Update target user (Following)
+    this.data.users = this.data.users.map(u => {
+      if (u.id === targetUserId) {
+        if (!u.followers.includes(currentUserId)) {
+          return { ...u, followers: [...u.followers, currentUserId] };
+        }
+      }
+      return u;
+    });
+
+    this.save();
+    return { success: true, updatedUser: this.getCurrentUser()! };
+  }
+
+  unfollowUser(targetUserId: string): { success: boolean, updatedUser: User } {
+    const currentUserId = this.data.currentUser;
+    if (!currentUserId) throw new Error("Not logged in");
+
+    this.data.users = this.data.users.map(u => {
+      if (u.id === currentUserId) {
+        return { ...u, following: u.following.filter(id => id !== targetUserId) };
+      }
+      return u;
+    });
+
+    this.data.users = this.data.users.map(u => {
+      if (u.id === targetUserId) {
+        return { ...u, followers: u.followers.filter(id => id !== currentUserId) };
+      }
+      return u;
+    });
+
+    this.save();
+    return { success: true, updatedUser: this.getCurrentUser()! };
+  }
+
+  // --- Data Methods ---
+
+  getGoalsForUser(): Goal[] {
+    if (!this.data.currentUser) return [];
+    return this.data.goals.filter(g => g.userId === this.data.currentUser);
+  }
+
+  saveGoalsForUser(userGoals: Goal[]) {
+    if (!this.data.currentUser) return;
+    const otherGoals = this.data.goals.filter(g => g.userId !== this.data.currentUser);
+    this.data.goals = [...otherGoals, ...userGoals];
     this.save();
   }
 
-  // --- Post Methods ---
   getPosts(): Post[] {
-    return this.data.posts;
+    return this.data.posts.map(p => ({
+      ...p,
+      likedBy: p.likedBy || [],
+      commentsList: p.commentsList || []
+    }));
   }
 
   addPost(post: Post) {
-    this.data.posts.unshift(post);
+    const postWithDefaults = { ...post, likedBy: [], commentsList: [] };
+    this.data.posts.unshift(postWithDefaults);
     this.save();
   }
 
-  // --- Reward Methods ---
   getRewards(): Reward[] {
     return this.data.rewards;
   }
+  
+  getStories(): Story[] {
+    return this.data.stories;
+  }
 
-  updateRewards(rewards: Reward[]) {
-    this.data.rewards = rewards;
+  addStory(userId: string, image: string, text?: string): Story {
+    const user = this.getUserById(userId);
+    const newStory: Story = {
+      id: `s-${Date.now()}`,
+      userId: userId,
+      userName: user?.name || 'User',
+      userAvatar: user?.avatar || '',
+      imageUrl: image,
+      caption: text,
+      hasUnseen: true,
+      timestamp: 'Just now'
+    };
+    this.data.stories.unshift(newStory);
+    this.save();
+    return newStory;
+  }
+
+  markStorySeen(storyId: string) {
+    this.data.stories = this.data.stories.map(s => s.id === storyId ? { ...s, hasUnseen: false } : s);
     this.save();
   }
 
-  // --- Utility ---
-  init() {
-    // If we want to seed initial posts only on first run ever:
-    if (this.data.goals.length === 0) {
-      this.data.goals = SEED_GOALS;
-      this.save();
-    }
-    if (this.data.posts.length === 0) {
-      this.data.posts = SEED_POSTS;
-      this.save();
-    }
-  }
+  init() {}
 }
 
-// Singleton Instance
 const db = new LocalDatabase();
 
 export const StorageService = {
   init: () => db.init(),
-  getUser: () => db.getUser(),
-  saveUser: (u: User) => db.setUser(u),
-  removeUser: () => db.removeUser(),
   
-  getGoals: () => db.getGoals(),
-  saveGoals: (goals: Goal[]) => {
+  // Auth
+  signup: (n: string, e: string, p: string) => db.signup(n, e, p),
+  login: (e: string, p: string) => db.login(e, p),
+  logout: () => db.logout(),
+  getCurrentUser: () => db.getCurrentUser(),
+  getUserById: (id: string) => db.getUserById(id),
+  updateUser: (u: User) => db.updateCurrentUser(u),
 
-    // This method exists for backward compatibility with App.tsx bulk updates, 
-    // but ideally we use updateGoal individually.
-    // We'll just replace the whole array for now to match App logic.
-    // A better backend would iterate and update.
-    // For this implementation, we can just assume 'goals' is the new state.
-    // However, the DB class doesn't have "setAllGoals", so let's hack it or fix App.tsx.
-    // Let's implement a bulk setter in the class?
-    // Actually, let's just expose a way to set the goals array for compatibility.
-    (db as any).data.goals = goals;
-    (db as any).save();
-  },
+  // Social
+  searchUsers: (q: string) => db.searchUsers(q),
+  getSuggestedUsers: () => db.getSuggestedUsers(),
+  toggleLike: (postId: string) => db.toggleLike(postId),
+  addComment: (postId: string, text: string) => db.addComment(postId, text),
+  followUser: (targetId: string) => db.followUser(targetId),
+  unfollowUser: (targetId: string) => db.unfollowUser(targetId),
 
+  // Data
+  getGoals: () => db.getGoalsForUser(),
+  saveGoals: (goals: Goal[]) => db.saveGoalsForUser(goals),
   getPosts: () => db.getPosts(),
-  savePosts: (posts: Post[]) => {
-    (db as any).data.posts = posts;
-    (db as any).save();
-  },
-
-  getRewards: () => db.getRewards(),
-  saveRewards: (rewards: Reward[]) => db.updateRewards(rewards),
-  
-  // Expose direct methods for cleaner usage if we refactor App later
-  addGoal: (g: Goal) => db.addGoal(g),
-  updateGoal: (g: Goal) => db.updateGoal(g),
   addPost: (p: Post) => db.addPost(p),
+  getRewards: () => db.getRewards(),
+  getStories: () => db.getStories(),
+  addStory: (userId: string, img: string, txt?: string) => db.addStory(userId, img, txt),
+  markStorySeen: (id: string) => db.markStorySeen(id),
 };

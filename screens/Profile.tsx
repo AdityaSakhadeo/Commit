@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Goal } from '../types';
-import { Settings, Award, Flame, Target, Award as AwardIcon, ChevronRight, LogOut } from 'lucide-react';
+import { Settings, Award, Flame, Target, Award as AwardIcon, ChevronRight, LogOut, Users } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
@@ -30,9 +30,22 @@ export default function Profile({ user, goals, onGoalSelect, onLogout }: Profile
              </div>
            </div>
            <h2 className="text-2xl font-bold text-slate-900 mb-1">{user.name}</h2>
-           <p className="text-slate-500 text-sm max-w-xs leading-relaxed">{user.bio}</p>
+           <p className="text-slate-500 text-sm max-w-xs leading-relaxed mb-4">{user.bio}</p>
 
-           <div className="flex items-center gap-4 mt-8 w-full justify-center">
+           {/* Following/Followers Stats */}
+           <div className="flex gap-6 mb-6">
+              <div className="text-center">
+                 <p className="text-lg font-bold text-slate-900">{user.followers.length}</p>
+                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Followers</p>
+              </div>
+              <div className="w-px bg-slate-100"></div>
+              <div className="text-center">
+                 <p className="text-lg font-bold text-slate-900">{user.following.length}</p>
+                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Following</p>
+              </div>
+           </div>
+
+           <div className="flex items-center gap-4 w-full justify-center">
               <div className="text-center flex-1 p-3 rounded-2xl bg-orange-50/50 border border-orange-100">
                 <div className="flex items-center justify-center gap-1 text-orange-500 mb-1">
                   <Flame size={18} fill="currentColor" />
