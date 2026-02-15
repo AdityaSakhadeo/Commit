@@ -1,8 +1,12 @@
 export enum Screen {
   ONBOARDING = 'ONBOARDING',
+  LOGIN = 'LOGIN',
+  SIGNUP = 'SIGNUP',
   GOAL_SELECTION = 'GOAL_SELECTION',
   AI_SETUP = 'AI_SETUP',
   HOME = 'HOME',
+  SEARCH = 'SEARCH',
+  GOALS = 'GOALS',
   CREATE_POST = 'CREATE_POST',
   GOAL_DETAIL = 'GOAL_DETAIL',
   REWARDS = 'REWARDS',
@@ -19,6 +23,7 @@ export interface Task {
 
 export interface Goal {
   id: string;
+  userId: string; // Linked to specific user
   title: string;
   domain: Domain;
   progress: number; // 0 to 100
@@ -26,6 +31,17 @@ export interface Goal {
   streak: number;
   completed: boolean;
   startDate: string;
+  totalSkipsAllowed: number;
+  skippedDates: string[]; // ISO date strings of days that were skipped/shifted
+  completedDayNumbers?: number[]; 
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
 }
 
 export interface Post {
@@ -39,7 +55,9 @@ export interface Post {
   content: string;
   image?: string;
   likes: number;
+  likedBy: string[]; // Array of user IDs
   comments: number;
+  commentsList: Comment[];
   timestamp: string;
   progressUpdate?: number;
 }
@@ -49,7 +67,10 @@ export interface Story {
   userId: string;
   userName: string;
   userAvatar: string;
+  imageUrl: string; // The story content
+  caption?: string; // Optional text caption
   hasUnseen: boolean;
+  timestamp: string;
 }
 
 export interface Reward {
@@ -60,13 +81,17 @@ export interface Reward {
   validity: string;
   unlocked: boolean;
   code?: string;
+  userId?: string; // Optional: track which user unlocked it
 }
 
 export interface User {
   id: string;
   name: string;
+  email: string;
   bio: string;
   avatar: string;
+  following: string[]; // Array of user IDs
+  followers: string[]; // Array of user IDs
   stats: {
     goalsCompleted: number;
     currentStreak: number;

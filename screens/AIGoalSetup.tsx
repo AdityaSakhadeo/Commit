@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Domain, Goal, Task } from '../types';
 import { Header } from '../components/Layout';
 import { generateGoalPlan, suggestGoals, AIPlanResponse } from '../services/geminiService';
-import { Wand2, RefreshCw, ChevronRight, X, Sparkles, CalendarDays, Repeat, ClipboardList } from 'lucide-react';
+import { Wand2, RefreshCw, ChevronRight, Sparkles, CalendarDays, Repeat, ClipboardList } from 'lucide-react';
 
 interface AIGoalSetupProps {
   domain: Domain;
@@ -61,6 +61,9 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
     // 2. Add Routine Tasks based on the cycle
     // Limit duration to 60 days max for this demo
     const actualDuration = Math.min(generatedPlan.duration_days || 30, 60);
+    // Calculate Skips: 10% of total duration, min 1
+    const totalSkips = Math.max(1, Math.floor(actualDuration * 0.1));
+
     const cycle = generatedPlan.schedule_cycle || [];
     const cycleLength = cycle.length;
     
@@ -87,13 +90,16 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
 
     const newGoal: Goal = {
       id: Date.now().toString(),
+      userId: 'temp', // Placeholder, will be overwritten by the handler in App.tsx
       title: generatedPlan.title,
       domain: domain,
       progress: 0,
       streak: 0,
       completed: false,
       startDate: new Date().toISOString(),
-      tasks: finalTasks
+      tasks: finalTasks,
+      totalSkipsAllowed: totalSkips,
+      skippedDates: []
     };
 
     onGoalCreated(newGoal);
@@ -177,12 +183,21 @@ export default function AIGoalSetup({ domain, onGoalCreated, onBack }: AIGoalSet
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{generatedPlan.title}</h2>
                     <span className="inline-block mt-2 px-3 py-1 bg-teal-50 text-teal-700 text-xs rounded-full font-bold uppercase tracking-wide border border-teal-100">{domain}</span>
                  </div>
-                 <button onClick={() => setGeneratedPlan(null)} className="text-sm text-slate-400 hover:text-slate-600 underline">Edit</button>
+                 {/* Edit Button Removed as per request */}
               </div>
               
               <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl italic border border-slate-100">
                 "{generatedPlan.description}"
               </p>
+              
+              {/* Skip Info Banner */}
+              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-center gap-2 text-sm text-blue-800">
+                <CalendarDays size={18} />
+                <span>
+                  <strong>{generatedPlan.duration_days || 30} Days</strong> duration. 
+                  You get <strong>{Math.max(1, Math.floor((generatedPlan.duration_days || 30) * 0.1))} Skips</strong> (10%).
+                </span>
+              </div>
 
               {/* Setup Tasks */}
               <div>

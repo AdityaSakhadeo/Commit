@@ -1,7 +1,12 @@
 import React from 'react';
-import { ArrowRight, Activity, Users } from 'lucide-react';
+import { ArrowRight, Activity } from 'lucide-react';
+import { Screen } from '../types';
 
-export default function Onboarding({ onStart }: { onStart: () => void }) {
+interface OnboardingProps {
+  onNavigate: (screen: Screen) => void;
+}
+
+export default function Onboarding({ onNavigate }: OnboardingProps) {
   return (
     <div className="h-full flex flex-col items-center justify-between p-8 bg-gradient-to-b from-teal-50 to-white">
       <div className="flex-1 flex flex-col items-center justify-center space-y-8 w-full">
@@ -43,13 +48,16 @@ export default function Onboarding({ onStart }: { onStart: () => void }) {
 
       <div className="w-full space-y-4">
         <button 
-          onClick={onStart}
+          onClick={() => onNavigate(Screen.SIGNUP)}
           className="w-full py-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-2xl font-semibold shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2 transition-all"
         >
           Get Started <ArrowRight size={20} />
         </button>
-        <button className="w-full py-4 text-slate-500 font-medium hover:text-slate-900 transition-colors">
-          Already have an account? Login
+        <button 
+          onClick={() => onNavigate(Screen.LOGIN)}
+          className="w-full py-4 text-slate-500 font-medium hover:text-slate-900 transition-colors"
+        >
+          Log In
         </button>
       </div>
     </div>

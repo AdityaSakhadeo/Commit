@@ -31,7 +31,9 @@ export default function CreatePost({ user, activeGoals, onPost, onCancel }: Crea
       type: postType,
       content,
       likes: 0,
+      likedBy: [],
       comments: 0,
+      commentsList: [],
       timestamp: 'Just now',
       progressUpdate: selectedGoal.progress,
       image: hasImage ? (postType === 'COMPLETED' ? 'https://picsum.photos/id/102/800/600' : 'https://picsum.photos/id/180/800/600') : undefined
