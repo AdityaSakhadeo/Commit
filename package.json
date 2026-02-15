@@ -1,22 +1,18 @@
 {
   "name": "commit---social-productivity",
-  "homepage": "https://AdityaSakhadeo.github.io/Commit/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@google/genai": "^1.38.0",
-    "gh-pages": "^6.3.0",
-    "lucide-react": "0.344.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "lucide-react": "0.344.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

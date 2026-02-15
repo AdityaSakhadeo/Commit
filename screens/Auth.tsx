@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { ArrowRight, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { User as UserType } from '../types';
 
@@ -16,6 +16,15 @@ export default function Auth({ mode, onAuthSuccess, onSwitchMode }: AuthProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) return "Password must be at least 8 characters long";
+    if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter";
+    if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter";
+    if (!/[0-9]/.test(pwd)) return "Password must contain at least one number";
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) return "Password must contain at least one special character";
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -30,6 +39,14 @@ export default function Auth({ mode, onAuthSuccess, onSwitchMode }: AuthProps) {
         setLoading(false);
         return;
       }
+
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        setLoading(false);
+        return;
+      }
+
       const result = StorageService.signup(name, email, password);
       if (result.success && result.user) {
         onAuthSuccess(result.user);
@@ -109,12 +126,17 @@ export default function Auth({ mode, onAuthSuccess, onSwitchMode }: AuthProps) {
               />
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             </div>
+            {mode === 'SIGNUP' && (
+              <div className="text-[10px] text-slate-400 px-1 pt-1 leading-tight">
+                Must include: 8+ chars, uppercase, lowercase, number, special char.
+              </div>
+            )}
           </div>
 
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2 text-rose-600 text-sm font-medium animate-in fade-in slide-in-from-top-2">
-              <AlertCircle size={16} />
-              {error}
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
